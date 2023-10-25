@@ -1,0 +1,47 @@
+name: Deploy to ECS and SonarQube
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Login to Amazon ECR
+        run: aws ecr get-login-password --region <aws-region> | docker login --username AWS --password-stdin <ecr-repo-url>
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t your-repo-name .
+          docker tag your-repo-name:latest <ecr-repo-url>/your-repo-name:latest
+          docker push <ecr-repo-url>/your-repo-name:latest
+
+      - name: Update ECS Service
+        run: |
+          aws ecs update-service --cluster your-ecs-cluster --service your-ecs-service --force-new-deployment
+
+      - name: Wait for Deployment
+        run: |
+          aws ecs wait services-stable --cluster your-ecs-cluster --services your-ecs-service
+
+      - name: Deploy SonarQube Stack
+        run: |
+          aws cloudformation deploy --template-file sonarqube-stack.yaml --stack-name sonarqube-stack-name
+
+      - name: Wait for SonarQube Stack Deployment
+        run: |
+          # Add a script to monitor the CloudFormation stack status
+
+      - name: Test Deployment
+        run: |
+          # You can add tests here to validate your deployment
+
+      - name: Deploy to ALB
+        run: |
+          # You may need to configure your ALB to route traffic to the new ECS tasks
